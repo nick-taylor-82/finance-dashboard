@@ -1,0 +1,1365 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Dashboard KG Financeiro — por Kleber Gonzales </title>
+<style>
+:root{--green:#128a5e;--muted:#6b7280;--card:#fff;--bg:#f3f6f8;--accent:#7c3aed;--danger:#ef4444;--income:#0f6f4f}
+html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:#111}
+.topbar{background:linear-gradient(90deg,var(--green),#0f6f4f);padding:12px 18px;color:#fff;display:flex;justify-content:space-between;align-items:center}
+.brand{font-weight:700;font-size:16px}
+.container{max-width:1200px;margin:16px auto;padding:0 14px}
+.layout{display:grid;grid-template-columns:340px 1fr;gap:14px}
+.panel{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+.section-title{font-size:13px;color:var(--muted);font-weight:700;margin:0 0 8px 0}
+.small{font-size:12px;color:var(--muted)}
+.big{font-size:20px;font-weight:700}
+input,select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ec;background:#fff;font-size:14px;box-sizing:border-box}
+.btn{background:var(--green);color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:600}
+.btn.secondary{background:#fff;color:#111;border:1px solid #e6e9ec}
+.pie-and-stats{display:flex;gap:16px;align-items:center}
+.pie{width:160px;height:160px}
+.bucket-bars{display:flex;gap:12px;align-items:flex-end;height:160px;padding:8px;background:linear-gradient(180deg,#eef3f7,#fff);border-radius:8px;margin-top:10px}
+.bucket{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px}
+.bucket .bar-outer{width:60%;height:100%;background:#f1f5f9;border-radius:8px;position:relative;display:flex;align-items:flex-end}
+.bucket .bar-inner{width:100%;background:linear-gradient(180deg,var(--accent),#5b21b6);border-radius:8px 8px 0 0;position:absolute;bottom:0;left:0;text-align:center;color:#fff;font-size:12px}
+.bucket .label{font-weight:700;font-size:13px}
+.bars-trend{display:flex;gap:6px;align-items:flex-end;height:120px;padding:6px;border-radius:8px;margin-top:12px}
+.bar{width:18px;border-radius:6px;background:linear-gradient(180deg,var(--accent),#5b21b6);display:flex;align-items:flex-end;justify-content:center;color:#fff;font-size:11px}
+.tx-list{max-height:300px;overflow:auto;margin-top:8px}
+.tx{display:flex;justify-content:space-between;padding:8px;border-radius:8px;border:1px solid #f1f3f5;margin-bottom:6px;background:#fff}
+.small-muted{font-size:12px;color:#6b7280}
+.tag-muted{font-size:11px;color:#8b8f97;margin-left:8px}
+.rec-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.modal{position:fixed;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);z-index:999}
+.modal-card{background:#fff;padding:14px;border-radius:10px;min-width:320px;max-width:720px}
+.cat-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:12px}
+.cat-row .left{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.cat-row .left strong{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cat-controls{display:flex;gap:6px;align-items:center}
+.keyword-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.sheet-table{width:100%;border-collapse:collapse;margin-top:8px}
+.sheet-table th,.sheet-table td{border:1px solid #eef3f7;padding:8px;text-align:left}
+@media(max-width:980px){.layout{grid-template-columns:1fr}.pie-and-stats{flex-direction:column;align-items:flex-start}}
+
+/* Extra responsiveness for very small screens */
+@media(max-width:400px){
+  .topbar{flex-direction:column; align-items:flex-start; gap:8px}
+  .brand{font-size:14px}
+  .container{padding:0 8px}
+  .layout{grid-template-columns:1fr}
+  .panel{padding:10px}
+  .big{font-size:18px}
+  input,select,textarea{font-size:13px}
+  .pie{width:140px;height:140px}
+}
+/* Simple toast and modal styles */
+.toast{position:fixed; right:12px; bottom:12px; background:#111; color:#fff; padding:10px 12px; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,.25); z-index:9999; opacity:.96}
+.confirm-modal, .alert-modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.35); z-index:2000}
+.confirm-card, .alert-card{background:#fff; color:#111; border-radius:10px; padding:14px; width:min(92vw,460px)}
+.confirm-actions{display:flex; gap:8px; justify-content:flex-end; margin-top:12px}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">PLANO DE GASTOS CONSCIENTE</div>
+    <div style="display:flex;gap:12px;align-items:center">
+      <div class="small">Renda estimada: R$ <span id="hdrIncome">0,00</span></div>
+      <div style="display:flex;gap:12px">
+        <button class="btn" onclick="exportJSON()">Export JSON</button><input id="restoreInput" type="file" accept=".json" style="display:none"/><button class="btn secondary" onclick="document.getElementById('restoreInput').click()">Import JSON</button>
+        <button class="btn secondary" onclick="exportCSV()">Export CSV</button>
+        <button class="btn secondary" onclick="resetAll()">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="layout">
+
+      <!-- LEFT PANEL: settings, categories, recurring, add tx -->
+      <div class="panel">
+        <div class="section-title">Configuração (Orçamento projetado)</div>
+        <div class="small">Renda estimada e percentuais. Meta projetada apenas.</div>
+        <div style="margin-top:8px">
+          <label class="small">Renda estimada mensal (R$)</label>
+          <input id="inputIncome" type="text" placeholder="Ex: 5000,00"/>
+        </div>
+        <div style="margin-top:8px">
+          <label class="small">Custos Fixos (50-60%)</label>
+          <input id="p_fixed" type="number" min="0" max="100"/>
+        </div>
+        <div style="margin-top:8px">
+          <label class="small">Investimentos (10%)</label>
+          <input id="p_invest" type="number" min="0" max="100"/>
+        </div>
+        <div style="margin-top:8px">
+          <label class="small">Economias (5-10%)</label>
+          <input id="p_save" type="number" min="0" max="100"/>
+        </div>
+        <div style="margin-top:8px">
+          <label class="small">Gastos sem Culpa (20-35%)</label>
+          <input id="p_fun" type="number" min="0" max="100"/>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" onclick="uiSaveSettings()">Salvar</button>
+          <button class="btn secondary" onclick="uiCalcBudget()">Calcular</button>
+        </div>
+        <div id="budgetPreview" style="margin-top:12px"></div>
+
+        <hr style="margin:12px 0;border:none;border-top:1px solid #eef3f7"/>
+
+        <div class="section-title">Categorias e mapeamento</div>
+        <div class="small">Defina o bucket de cada categoria. Não mapeadas = Gastos sem Culpa.</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input id="newCategory" placeholder="Nova categoria"/>
+          <select id="newCatBucket"><option value="fun">Gasto sem Culpa</option><option value="fixed">Custos Fixos</option><option value="invest">Investimentos</option><option value="save">Economias</option><option value="income">Receita</option></select>
+          <button class="btn" onclick="addCategoryMapped()">Adicionar</button>
+        </div>
+        <div id="catList" style="margin-top:10px;max-height:120px;overflow:auto"></div>
+
+        <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+          <div class="small">Palavras-chave por categoria</div>
+          <button class="btn secondary" onclick="renderKeywordsManager()">Editar keywords</button>
+        </div>
+        <div id="keywordsPreview" class="small-muted" style="margin-top:8px;max-height:120px;overflow:auto"></div>
+
+        <hr style="margin:12px 0;border:none;border-top:1px solid #eef3f7"/>
+
+        <div class="section-title">Recorrentes</div><div class="rec-btns" style="display:flex;gap:8px;margin:6px 0"><button class="btn secondary" id="btnRecIncome" onclick="openRecModalIncome()">Receitas</button><button class="btn secondary" id="btnRecExpense" onclick="openRecModalExpense()">Despesas</button><button class="btn secondary" id="btnRecInstallment" onclick="openRecModalInstallment()">Parcelamentos</button></div>
+        <div class="small">Cadastre fixas. Aplicadas mensalmente.</div>
+        <div style="margin-top:8px">
+          <input id="recDesc" placeholder="Descrição"/>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <input id="recValue" type="text" placeholder="Valor"/>
+            <select id="recType"><option value="expense">Despesa</option><option value="income">Receita</option></select>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <label style="flex:1"><small>Data inicial</small><input id="recDate" type="date"/></label>
+            <select id="recFreq"><option value="monthly">Mensal</option><option value="bimonthly">Bimestral</option><option value="yearly">Anual</option></select>
+            <select id="recSubType" title="Tipo">
+              <option value="recurrence">Recorrência</option>
+              <option value="installment">Parcelamento</option>
+            </select>
+          </div>
+          <div id="installmentsRow" style="display:flex;gap:8px;margin-top:8px">
+            <label style="flex:1"><small>Total de parcelas</small><input id="recTotalParcels" type="number" min="1" step="1" placeholder="Ex: 12"/></label>
+            <label style="flex:1"><small>Parcelas restantes</small><input id="recRemainParcels" type="number" min="0" step="1" placeholder="Ex: 12"/></label>
+            <button class="btn" onclick="addRecurring()">Adicionar</button>
+          </div>
+        </div>
+        <div id="recList" style="margin-top:12px;display:none"></div>
+
+        <hr style="margin:12px 0;border:none;border-top:1px solid #eef3f7"/>
+
+        <div class="section-title">Adicionar transação</div>
+        <div style="margin-top:8px">
+          <label class="small">Data</label><input id="txDate" type="date"/>
+          <label class="small" style="margin-top:8px">Tipo</label><select id="txType"><option value="expense">Despesa</option><option value="income">Receita</option></select>
+          <label class="small" style="margin-top:8px">Descrição</label><input id="txDesc" placeholder="Descrição"/>
+          <label class="small" style="margin-top:8px">Categoria</label>
+          <select id="txCategorySelect"></select>
+          <input id="txCategoryCustom" placeholder="Categoria personalizada" style="margin-top:6px;display:none"/>
+          <label class="small" style="margin-top:8px">Valor (R$)</label><input id="txValue" type="text" placeholder="Ex: 120,50"/>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn" onclick="addTransactionFromForm()">Adicionar</button>
+            <button class="btn secondary" onclick="clearTxForm()">Limpar</button>
+          </div>
+        </div>
+
+        <hr style="margin:12px 0;border:none;border-top:1px solid #eef3f7"/>
+
+        <div class="section-title">Importar extrato (CSV / OFX)</div>
+        <input id="fileInput" type="file" accept=".csv,.txt,.ofx"/>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn" onclick="importFile()">Importar</button>
+          <button class="btn secondary" onclick="previewExampleCSV()">Exemplo CSV</button>
+        </div>
+        <div class="small-muted" style="margin-top:8px">Detecta colunas: date,data,amount,valor,description,descricao</div>
+      </div>
+
+      <!-- RIGHT PANEL: overview, charts, transactions -->
+      <div>
+        <div class="panel" id="overviewPanel">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div class="section-title">Visão Geral (Real)</div>
+              <div class="small">Mostra entradas e saídas reais do mês.</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn secondary" onclick="showReceber()">Contas a RECEBER</button>
+              <button class="btn secondary" onclick="showPagar()">Contas a PAGAR</button>
+              <button class="btn secondary" onclick="showDividas()">Dívidas/Empréstimos</button>
+              <button class="btn" onclick="showVisaoGeral()">Visão Geral</button>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;gap:12px;margin-top:12px">
+            <div style="flex:1">
+              <div class="small">Receita real (entradas no mês)</div>
+              <div class="big" id="txtIncomeReal">R$ 0,00</div>
+              <div class="small">Receitas recorrentes/assinaturas incluídas</div>
+            </div>
+            <div style="flex:1">
+              <div class="small">Despesas reais</div>
+              <div class="big" id="txtExpenseReal">R$ 0,00</div>
+              <div class="small">Despesas recorrentes: R$ <span id="txtRecExpense">0,00</span></div>
+            </div>
+            <div style="flex:1">
+              <div class="small">Saldo real (Entradas reais - Despesas reais)</div>
+              <div class="big" id="txtBalanceReal">R$ 0,00</div>
+              <div class="small">Investimentos acumulados (real): R$ <span id="txtInvestReal">0,00</span></div>
+            </div>
+          </div>
+
+          <div class="pie-and-stats" style="margin-top:12px">
+            <svg class="pie" id="pieSVG" viewBox="0 0 200 200"></svg>
+            <div style="flex:1">
+              <div id="budgetStats"></div>
+              <div style="margin-top:10px">
+                <div class="section-title">Progresso por categoria (mês atual vs meta projetada)</div>
+                <div class="bucket-bars" id="bucketBars"></div>
+                <div class="section-title" style="margin-top:12px">Evolução (12 meses)</div>
+                <div class="bars-trend" id="barsTrend"></div>
+                <div class="section-title" style="margin-top:12px">Saldo acumulado (12 meses)</div>
+                <div id="saldoAcumulado" class="small big"></div>
+                <div class="section-title" style="margin-top:12px">Projeção × Real (linha)</div>
+                <svg id="lineChart" viewBox="0 0 600 220" style="width:100%;height:auto;background:#fff;border-radius:8px;border:1px solid #eef3f7"></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:12px" id="transactionsPanel">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><div class="section-title">Transações</div><div class="small">Últimas (ordenadas por data)</div></div>
+            <div class="small-muted">Total: <span id="txCount">0</span></div>
+          </div>
+          
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <label class="small">Filtrar por</label>
+        <select id="txFilterMode" onchange="onFilterModeChange()" style="max-width:160px">
+          <option value="none">Nenhum</option>
+          <option value="month">Mês</option>
+          <option value="week">Semana</option>
+          <option value="period">Período</option>
+        </select>
+        <input id="filterMonth" type="month" style="display:none"/>
+        <input id="filterFrom" type="date" style="display:none"/>
+        <input id="filterTo" type="date" style="display:none"/>
+        <button class="btn secondary" onclick="applyTxFilter()">Aplicar filtro</button>
+        <button class="btn secondary" onclick="clearTxFilter()">Limpar filtro</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <label class="small">Ordenar por</label>
+        <select id="txSortKey" style="max-width:180px">
+          <option value="date">Data</option>
+          <option value="value">Valor</option>
+          <option value="category">Categoria</option>
+        </select>
+        <select id="txSortDir" style="max-width:140px">
+          <option value="desc">Descendente</option>
+          <option value="asc">Ascendente</option>
+        </select>
+        <button class="btn secondary" onclick="applySorting()">Ordenar</button>
+      </div>
+          <div class="tx-list" id="txList"></div>
+        </div>
+
+        <!-- Sheet view area (receber/pagar/dividas) -->
+        <div class="panel" id="sheetPanel" style="margin-top:12px;display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><div class="section-title" id="sheetTitle">Lista</div><div class="small" id="sheetSub">Filtro</div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn secondary" onclick="showVisaoGeral()">Visão Geral</button>
+            </div>
+          </div>
+          <div id="sheetContent"></div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Edit modal -->
+  <div id="modalEdit" style="display:none" class="modal" onclick="closeModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:center"><strong>Editar transação</strong><button onclick="closeModal()" class="btn secondary">Fechar</button></div>
+      <div style="margin-top:8px">
+        <label class="small">Data</label><input id="editDate" type="date"/>
+        <label class="small" style="margin-top:8px">Tipo</label><select id="editType"><option value="expense">Despesa</option><option value="income">Receita</option></select>
+        <label class="small" style="margin-top:8px">Descrição</label><input id="editDesc"/>
+        <label class="small" style="margin-top:8px">Categoria</label>
+        <select id="editCatSelect"></select>
+        <input id="editCatCustom" placeholder="Categoria personalizada (opcional)" style="margin-top:6px;display:none"/>
+        <label class="small" style="margin-top:8px">Valor (R$)</label><input id="editVal" type="text"/>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" onclick="saveEdit()">Salvar</button>
+          <button class="btn secondary" onclick="deleteEditing()">Remover</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <!-- Sheet Edit modal -->
+  <div id="modalSheetEdit" style="display:none" class="modal" onclick="closeSheetModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:center"><strong>Editar item da planilha</strong><button onclick="closeSheetModal()" class="btn secondary">Fechar</button></div>
+      <div style="margin-top:8px">
+        <label class="small">Data</label><input id="sheetEditDate" type="date"/>
+        <label class="small" style="margin-top:8px">Tipo</label><select id="sheetEditType"><option value="expense">Despesa</option><option value="income">Receita</option></select>
+        <label class="small" style="margin-top:8px">Descrição</label><input id="sheetEditDesc"/>
+        <label class="small" style="margin-top:8px">Categoria</label><select id="sheetEditCat"></select>
+        <label class="small" style="margin-top:8px">Valor (R$)</label><input id="sheetEditVal" type="text"/>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" onclick="saveSheetEdit()">Salvar</button>
+          <button class="btn secondary" onclick="deleteSheetEditing()">Remover</button>
+        </div>
+      </div>
+    </div>
+  </div>
+<!-- Keywords modal -->
+  <div id="modalKeywords" style="display:none" class="modal" onclick="closeKeywords(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:center"><strong>Palavras-chave por categoria</strong><button onclick="closeKeywords()" class="btn secondary">Fechar</button></div>
+      <div style="margin-top:8px;max-height:420px;overflow:auto">
+        <div id="keywordsManager"></div>
+      </div>
+    </div>
+  </div>
+
+
+<script>
+// Rebuilt dashboard script (v6) - clean and self-contained
+// Storage keys
+const KEY_SETTINGS = 'fin_v6_settings';
+const KEY_TX = 'fin_v6_tx';
+const KEY_REC = 'fin_v6_rec';
+const KEY_CATS = 'fin_v6_cats';
+const KEY_CATMAP = 'fin_v6_catmap';
+const KEY_KEYWORDS = 'fin_v6_keywords';
+const KEY_SHEET_RECEBER = 'fin_v6_sheet_receber';
+const KEY_SHEET_PAGAR = 'fin_v6_sheet_pagar';
+const KEY_SHEET_DIVIDAS = 'fin_v6_sheet_dividas';
+
+// Defaults
+const DEFAULTS = { income:6000, p_fixed:60, p_invest:10, p_save:5, p_fun:25 };
+const DEFAULT_CATEGORIES = ['Supermercado','Restaurantes','Transporte','Casa','Investimentos','Outros'];
+const DEFAULT_MAP = {'Supermercado':'fun','Restaurantes':'fun','Transporte':'fixed','Casa':'fixed','Investimentos':'invest'};
+const DEFAULT_KEYWORDS = {'Supermercado':['supermercado','padaria'],'Restaurantes':['restaurante','ifood','ubereats'],'Transporte':['uber','99'],'Investimentos':['invest','cdb','tesouro']};
+
+// Utility helpers
+function $(id){ return document.getElementById(id); }
+function parseNum(s){
+  if(s === null || s === undefined) return 0;
+  if (typeof s === 'number') return s;
+  let v = String(s).trim();
+
+  // Remove espaços e símbolos, preservando vírgula e ponto
+  v = v.replace(/[^\d.,\-]/g, '');
+
+  // Se houver vírgula depois de ponto, assume formato BR
+  if (v.includes(',') && v.includes('.')) {
+    if (v.lastIndexOf(',') > v.lastIndexOf('.')) {
+      v = v.replace(/\./g, '').replace(',', '.');
+    }
+  } else if (v.includes(',')) {
+    v = v.replace(',', '.');
+  }
+
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function money(v){ return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+// Storage helpers
+function load(key, fallback){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e){ return fallback; } }
+function save(key, obj){ localStorage.setItem(key, JSON.stringify(obj)); }
+
+// Loaders
+function loadSettings(){ return load(KEY_SETTINGS, DEFAULTS); }
+function saveSettings(s){ save(KEY_SETTINGS, s); }
+function loadTx(){ return load(KEY_TX, []); }
+function saveTx(arr){ save(KEY_TX, arr); }
+function loadCats(){ return load(KEY_CATS, DEFAULT_CATEGORIES.slice()); }
+function saveCats(arr){ save(KEY_CATS, arr); }
+function loadCatMap(){ return load(KEY_CATMAP, DEFAULT_MAP); }
+function saveCatMap(m){ save(KEY_CATMAP, m); }
+function loadKeywords(){ return load(KEY_KEYWORDS, DEFAULT_KEYWORDS); }
+function saveKeywords(k){ save(KEY_KEYWORDS, k); }
+function loadRec(){ return load(KEY_REC, []); }
+function saveRec(arr){ save(KEY_REC, arr); }
+function loadSheet(k){ return load(k, []); }
+function saveSheet(k, arr){ save(k, arr); }
+
+// Initialization
+function initUI(){
+  // populate settings
+  const s = loadSettings();
+  $('inputIncome').value = money(s.income);
+  $('p_fixed').value = s.p_fixed;
+  $('p_invest').value = s.p_invest;
+  $('p_save').value = s.p_save;
+  $('p_fun').value = s.p_fun;
+  $('hdrIncome').innerText = money(s.income);
+
+  // set default dates
+  if($('txDate')) $('txDate').valueAsDate = new Date();
+  if($('recDate')) $('recDate').valueAsDate = new Date();
+
+  renderCategoryManager();
+  populateCategorySelects();
+  renderKeywordsPreview();
+  renderRecurring();
+  applyRecurringIfNeeded();
+
+  // initial render
+  renderTxList();
+  renderBudget();
+
+  // attach filter init
+  if($('txFilterMode')) onFilterModeChange();
+}
+
+// Category manager
+function renderCategoryManager(){
+  const cats = loadCats().slice().sort((a,b)=> a.localeCompare(b,'pt-BR')); const map = loadCatMap();
+  const el = $('catList'); el.innerHTML='';
+  cats.forEach(c=>{
+    const row = document.createElement('div'); row.className='cat-row';
+    const left = document.createElement('div'); left.className='left';
+    const name = document.createElement('strong'); name.textContent = c;
+    left.appendChild(name); row.appendChild(left);
+    const controls = document.createElement('div'); controls.className='cat-controls';
+    const sel = document.createElement('select');
+    [['fun','Gasto sem Culpa'],['fixed','Custos Fixos'],['invest','Investimentos'],['save','Economias'],['income','Receita']].forEach(([v,label])=>{
+      const o = document.createElement('option'); o.value=v; o.textContent = label; if((map[c]||'fun')===v) o.selected=true; sel.appendChild(o);
+    });
+    sel.onchange = ()=>{ const m = loadCatMap(); m[c]=sel.value; saveCatMap(m); renderPreview(); renderBudget(); };
+    controls.appendChild(sel);
+    const btn = document.createElement('button'); btn.className='btn secondary'; btn.textContent='Remover'; btn.style.padding='6px 8px';
+    btn.onclick = ()=>{ if(!customConfirm('Remover categoria "'+c+'"?')) return; const arr = loadCats().filter(x=>x!==c); saveCats(arr); const m = loadCatMap(); delete m[c]; saveCatMap(m); renderCategoryManager(); populateCategorySelects(); renderPreview(); renderBudget(); };
+    controls.appendChild(btn);
+    row.appendChild(controls);
+    el.appendChild(row);
+  });
+  renderPreview();
+}
+function addCategoryMapped(){ const v = ($('newCategory').value||'').trim(); const bucket = $('newCatBucket').value; if(!v) return customAlert('Informe nome'); const cats = loadCats(); if(cats.includes(v)) return customAlert('Já existe'); cats.unshift(v); saveCats(cats); const m=loadCatMap(); m[v]=bucket; saveCatMap(m); $('newCategory').value=''; renderCategoryManager(); populateCategorySelects(); renderKeywordsPreview(); }
+function renderPreview(){ const cats = loadCats(); const m = loadCatMap(); const groups={income:[],fixed:[],invest:[],save:[],fun:[]}; cats.forEach(c=>{const b=m[c]||'fun'; groups[b].push(c);}); const el=$('budgetPreview'); el.innerHTML=''; Object.keys(groups).forEach(k=>{ const title = k==='income'?'Receita':k==='fixed'?'Custos Fixos':k==='invest'?'Investimentos':k==='save'?'Economias':'Gastos sem Culpa'; const div=document.createElement('div'); div.innerHTML = `<strong>${title}</strong>: <span class="small-muted">${groups[k].slice(0,12).join(', ')}${groups[k].length>12?' ...':''}</span>`; el.appendChild(div); }); }
+
+// Keywords manager preview
+function renderKeywordsPreview(){ const kws = loadKeywords(); const el = $('keywordsPreview'); if(!el) return; el.innerHTML=''; const lines=[]; Object.keys(kws).sort((a,b)=> a.localeCompare(b,'pt-BR')).forEach(cat=>{ const list=(kws[cat]||[]).slice().sort((x,y)=> x.localeCompare(y,'pt-BR')); lines.push(`<strong>${cat}:</strong> ${list.slice(0,6).join(', ')}${list.length>6?' ...':''}`); }); el.innerHTML = lines.join('<br>'); }
+
+// populate category selects
+function populateCategorySelects(){ const cats = loadCats().slice().sort((a,b)=> a.localeCompare(b,'pt-BR')); ['txCategorySelect','editCatSelect'].forEach(id=>{ const sel = $(id); if(!sel) return; sel.innerHTML=''; const opt0 = document.createElement('option'); opt0.value=''; opt0.textContent='-- selecionar --'; sel.appendChild(opt0); cats.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); }); const oCustom=document.createElement('option'); oCustom.value='__custom__'; oCustom.textContent='(categoria personalizada)'; sel.appendChild(oCustom); }); }
+
+// category auto based on keywords
+function autoCategory(desc){ if(!desc) return 'Outros'; const d = desc.toLowerCase(); const kws = loadKeywords(); for(const cat in kws){ const list=kws[cat]||[]; for(const w of list){ if(w && d.includes(w.toLowerCase())) return cat; } } return 'Outros'; }
+function getCategoryBucket(cat){ const m = loadCatMap(); if(!cat) return 'fun'; return m[cat] || 'fun'; }
+
+// Transactions
+function mergedTxList(){ const persisted = loadTx(); const merged = persisted.slice(); merged.sort((a,b)=>{ const da = a.date?Date.parse(a.date):0; const db = b.date?Date.parse(b.date):0; return db-da; }); return merged; }
+function addTransactionFromForm(){ const date=$('txDate').value; const type=$('txType').value; const desc=($('txDesc').value||'').trim(); let category=$('txCategorySelect').value; if(category==='__custom__') category = ($('txCategoryCustom').value||'').trim(); if(!category) category = autoCategory(desc); const value = parseNum($('txValue').value); if(!date||!value) return customAlert('Preencha data e valor'); const tx = {id: Date.now()+Math.floor(Math.random()*1000), date, type, desc, category, value, imported:false}; const arr = loadTx(); arr.unshift(tx); saveTx(arr); clearTxForm(); renderTxList(); renderBudget(); }
+function clearTxForm(){ if($('txDesc')) $('txDesc').value=''; if($('txCategoryCustom')) $('txCategoryCustom').value=''; if($('txValue')) $('txValue').value=''; if($('txDate')) $('txDate').valueAsDate=new Date(); if($('txCategorySelect')) $('txCategorySelect').value=''; if($('txCategoryCustom')) $('txCategoryCustom').style.display='none'; }
+
+function renderTxList(){ const all = mergedTxList(); const arr = applyDateFilterToArr(all); const el = $('txList'); el.innerHTML=''; $('txCount').innerText = arr.length; arr.slice(0,500).forEach(t=>{ const div = document.createElement('div'); div.className='tx'; const importInfo = t.importedSource? `<span class="tag-muted">(${t.importedSource})</span>` : ''; const tempLabel = t.temp? `<span class="tag-muted">[temp]</span>` : ''; div.innerHTML = `<div><div style="font-weight:700">${t.category} ${importInfo} ${tempLabel}</div><div class="small-muted">${t.date} • ${t.desc}</div></div><div style="text-align:right"><div style="font-weight:700;color:${t.type==='income'?'var(--income)':'var(--danger)'}">${t.type==='income'?'+ ':'- '}R$ ${money(t.value)}</div><div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button class="btn secondary" onclick="openEdit(${t.id})">Editar</button><button class="btn secondary" onclick="removeTx(${t.id})">Remover</button></div></div>`; el.appendChild(div); }); }
+
+// Edit modal for main transactions
+let editingId = null;
+function openEdit(id){ const arr = mergedTxList(); const t = arr.find(x=>x.id===id); if(!t) return; editingId = id; $('editDate').value = t.date || ''; $('editType').value = t.type || 'expense'; $('editDesc').value = t.desc || ''; populateCategorySelects(); const sel = $('editCatSelect'); if(loadCats().includes(t.category)){ sel.value = t.category; $('editCatCustom').style.display='none'; } else { sel.value='__custom__'; $('editCatCustom').style.display='block'; $('editCatCustom').value = t.category; } $('editVal').value = money(t.value); $('modalEdit').style.display='flex'; }
+function closeModal(e){ if(e && e.target && e.target.id==='modalEdit'){ $('modalEdit').style.display='none'; editingId=null; } else if(!e){ $('modalEdit').style.display='none'; editingId=null; } }
+function saveEdit(){ if(!editingId) return; const catSel = $('editCatSelect').value; let category = catSel==='__custom__'? ($('editCatCustom').value||'').trim() : catSel; const arr = loadTx(); const idx = arr.findIndex(x=>x.id===editingId); if(idx<0) { // maybe temp?
+    // nothing
+  } else {
+    arr[idx].date = $('editDate').value; arr[idx].type = $('editType').value; arr[idx].desc = $('editDesc').value; arr[idx].category = category || autoCategory(arr[idx].desc); arr[idx].value = parseNum($('editVal').value); saveTx(arr);
+  }
+  renderTxList(); renderBudget(); closeModal();
+}
+function deleteEditing(){ if(!editingId) return; if(!customConfirm('Remover esta transação?')) return; removeTx(editingId); closeModal(); }
+function removeTx(id){ let arr = loadTx(); arr = arr.filter(t=> t.id !== id); saveTx(arr); renderTxList(); renderBudget(); }
+
+// Recurring
+function addRecurring(){ const desc = ($('recDesc').value||'').trim(); const value = parseNum($('recValue').value); const type = $('recType').value; const freq = $('recFreq').value; const startDate = $('recDate').value; if(!desc||!value||!startDate) return customAlert('Preencha descrição, valor e data inicial'); const rec = {id: Date.now()+Math.floor(Math.random()*1000), desc, value, type, freq, startDate}; const arr = loadRec(); arr.unshift(rec); saveRec(arr); renderRecurring(); applySingleRecurring(rec); $('recDesc').value=''; $('recValue').value=''; $('recDate').valueAsDate=new Date(); renderTxList(); renderBudget(); }
+function renderRecurring(){ const arr = loadRec(); const el = $('recList'); el.innerHTML=''; if(arr.length===0){ el.innerHTML='<div class="small-muted">Nenhuma recorrência cadastrada</div>'; return; } arr.forEach(r=>{ const d = document.createElement('div'); d.className='rec-row'; d.innerHTML = `<div style="flex:1"><strong>${r.desc}</strong><div class="small-muted">${r.freq} • ${r.type} • R$ ${money(r.value)} • Início: ${r.startDate}</div></div><div style="display:flex;gap:6px"><button class="btn secondary" onclick="removeRec(${r.id})">Remover</button></div>`; el.appendChild(d); }); }
+function removeRec(id){ if(!customConfirm('Remover recorrência?')) return; let arr = loadRec(); arr = arr.filter(r=> r.id !== id); saveRec(arr); renderRecurring(); }
+
+function monthKey(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function applySingleRecurring(rec){ const appliedKey = KEY_REC + '_applied'; const applied = load(appliedKey, {}); const mk = monthKey(); applied[mk] = applied[mk] || []; if(applied[mk].includes(rec.id)) return; const day = rec.startDate ? (rec.startDate.slice(8,10) || '01') : '01'; const d = new Date(); const mm = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${day}`; const tx = {id: Date.now()+Math.floor(Math.random()*1000), date:mm, type:rec.type, category:'Recorrente', desc:rec.desc, value:rec.value, imported:false}; const arr = loadTx(); arr.unshift(tx); saveTx(arr); applied[mk].push(rec.id); save(appliedKey, applied); }
+
+function applyRecurringIfNeeded(){ const recs = loadRec(); recs.forEach(r=> applySingleRecurring(r)); }
+
+// Import CSV/OFX minimal parser (keeps original behavior but simple)
+function importFile(){ const f = $('fileInput').files[0]; if(!f) return customAlert('Escolha um arquivo'); const reader = new FileReader(); reader.onload = (e)=>{ const txt = e.target.result || ''; try{ let parsed = []; if(txt.trim().startsWith('<OFX') || txt.indexOf('<STMTTRN>')!==-1){ parsed = parseOFX(txt); parsed.forEach(p=> p.importedSource='OFX'); } else parsed = parseCSVFlexible(txt), parsed.forEach(p=> p.importedSource='CSV'); applyImportedTx(parsed); } catch(err){ customAlert('Erro ao ler arquivo: ' + (err && err.message?err.message:err)); } }; reader.readAsText(f,'utf-8'); }
+
+function parseCSVFlexible(txt){ const lines = txt.trim().split(/\r?\n/).filter(l=>l.trim()); if(lines.length<=1) return []; const delim = lines[0].indexOf(';')!==-1?';':','; const header = lines[0].split(delim).map(h=>h.trim().toLowerCase()); const rows = lines.slice(1); const results = []; rows.forEach(r=>{ const cols = r.split(delim).map(c=>c.trim().replace(/^"(.+)"$/,'$1')); const obj={}; for(let i=0;i<header.length;i++) obj[header[i]] = cols[i]||''; const date = obj['date']||obj['data']||obj['dt']||''; let amount = obj['amount']||obj['valor']||'0'; amount = amount.replace(/\./g,'').replace(',','.'); const description = obj['description']||obj['descricao']||obj['memo']||''; const val = parseNum(amount); const type = val>=0? 'income':'expense'; results.push({date: formatDateCSV(date), type, category: autoCategory(description), desc: description, value: Math.abs(val)}); }); return results; }
+function formatDateCSV(d){ if(!d) return new Date().toISOString().slice(0,10); if(/\d{2}\/\d{2}\/\d{4}/.test(d)){ const p=d.split('/'); return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`; } if(/\d{8}/.test(d)) return d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8); if(/\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0,10); const dd = new Date(d); if(!isNaN(dd)) return dd.toISOString().slice(0,10); return new Date().toISOString().slice(0,10); }
+function parseOFX(txt){ const entries=[]; const blocks = txt.split('<STMTTRN>').slice(1); blocks.forEach(b=>{ const dt = (b.match(/<DTPOSTED>([0-9\-:TZ+]*)/)||b.match(/<DTPOSTED>(\d{8})/)); const amt = b.match(/<TRNAMT>(-?\d+[\.,]?\d*)/); const name = b.match(/<NAME>([^<\r\n]+)/); const memo = b.match(/<MEMO>([^<\r\n]+)/); const date = dt? formatDateCSV(dt[1]) : new Date().toISOString().slice(0,10); const amount = amt ? amt[1].replace(',', '.').replace(/[^\d.-]/g, '') : '0';
+ const desc = ((name?name[1]:'') + ' ' + (memo?memo[1]:'')).trim(); const type = Number(amount)>=0? 'income':'expense'; entries.push({date, type, category: autoCategory(desc), desc, value: Math.abs(parseNum(amount))}); }); return entries; }
+function applyImportedTx(txArr){ if(!txArr||txArr.length===0) return customAlert('Nenhum registro detectado'); const arr = loadTx(); const signatures = new Set(arr.map(t=>`${t.date}|${t.value}|${(t.desc||'').slice(0,40)}`)); let added=0; txArr.forEach(t=>{ const sig = `${t.date}|${t.value}|${(t.desc||'').slice(0,40)}`; if(signatures.has(sig)) return; const obj = {...t, id: Date.now()+Math.floor(Math.random()*1000), imported:true, importedSource: t.importedSource||'Import'}; arr.unshift(obj); signatures.add(sig); added++; }); saveTx(arr); renderTxList(); renderBudget(); renderKeywordsPreview(); customAlert('Importação finalizada. Registros adicionados: ' + added); }
+
+// Filters UI
+function onFilterModeChange(){ const m = $('txFilterMode').value; $('filterMonth').style.display = m==='month' ? 'inline-block' : 'none'; $('filterFrom').style.display = (m==='period'||m==='week') ? 'inline-block' : 'none'; $('filterTo').style.display = (m==='period'||m==='week') ? 'inline-block' : 'none'; if(m==='week'){ const now=new Date(); const from=new Date(now.getFullYear(), now.getMonth(), now.getDate()-6); $('filterFrom').value = from.toISOString().slice(0,10); $('filterTo').value = new Date().toISOString().slice(0,10); $('filterMonth').value=''; } if(m==='month'){ $('filterMonth').value = new Date().toISOString().slice(0,7); $('filterFrom').value=''; $('filterTo').value=''; } if(m==='none'){ $('filterMonth').value=''; $('filterFrom').value=''; $('filterTo').value=''; } }
+function getActiveFilterRange(){ const mode = $('txFilterMode').value; if(mode==='none') return null; if(mode==='month'){ const m = $('filterMonth').value; if(!m) return null; const [y,mo]=m.split('-'); const from=new Date(y,Number(mo)-1,1); const to=new Date(y,Number(mo),0); return {from: from.toISOString().slice(0,10), to: to.toISOString().slice(0,10)}; } if(mode==='week'||mode==='period'){ const f=$('filterFrom').value; const t=$('filterTo').value; if(!f||!t) return null; return {from: f, to: t}; } return null; }
+function applyDateFilterToArr(arr){ const range = getActiveFilterRange(); if(!range) return arr; const from = Date.parse(range.from); const to = Date.parse(range.to) + (24*60*60*1000 - 1); return arr.filter(t=> { if(!t.date) return false; const d = Date.parse(t.date); return !isNaN(d) && d>=from && d<=to; }); }
+function applyTxFilter(){ renderTxList(); renderBudget(); }
+function clearTxFilter(){ $('txFilterMode').value='none'; onFilterModeChange(); renderTxList(); renderBudget(); }
+
+// Charts and budget
+function renderBudget(){
+  // settings and projected values
+  const s = loadSettings();
+  const proj = Number(s.income||0);
+  const fixedV = proj*(s.p_fixed/100), investV = proj*(s.p_invest/100), saveV = proj*(s.p_save/100), funV = proj*(s.p_fun/100);
+
+  // transactions (respecting active date filter)
+  const all = applyDateFilterToArr(mergedTxList());
+  const monthStr = new Date().toISOString().slice(0,7);
+  let incomeReal=0, expensesReal=0;
+  all.forEach(t=>{ if(!t.date) return; if(t.date.slice(0,7)===monthStr){ if(t.type==='income') incomeReal+=Number(t.value); else expensesReal+=Number(t.value); } });
+
+  $('txtIncomeReal').innerText = 'R$ ' + money(incomeReal);
+  $('txtExpenseReal').innerText = 'R$ ' + money(expensesReal);
+  $('txtBalanceReal').innerText = 'R$ ' + money(incomeReal-expensesReal);
+  $('txtInvestReal').innerText = money(investV + (incomeReal * (s.p_invest/100)));
+  $('txtRecExpense').innerText = money(loadRec().reduce((a,b)=> a + (b.type==='expense'? Number(b.value):0),0));
+
+  // Build details per category (include all mapped categories and 'Outros')
+  const cats = loadCats().slice();
+  if(!cats.includes('Outros')) cats.push('Outros');
+  const details = {}; // {category: {bucket, amount}}
+  const catMap = loadCatMap();
+  cats.forEach(cat=>{
+    details[cat] = { bucket: catMap[cat] || 'fun', amount: 0 };
+  });
+
+  // also ensure categories referenced in txs are present
+  all.forEach(t=>{
+    if(t.type!=='expense') return;
+    const cat = t.category || autoCategory(t.desc||'') || 'Outros';
+    if(!details[cat]) details[cat] = { bucket: getCategoryBucket(cat) || 'fun', amount: 0 };
+    details[cat].amount += Number(t.value);
+  });
+
+  // Aggregate buckets from details (sum of child categories)
+  const buckets = { fixed:0, invest:0, save:0, fun:0 };
+  Object.keys(details).forEach(cat=>{
+    const d = details[cat];
+    if(!d || !d.bucket) return;
+    if(!buckets[d.bucket]) buckets[d.bucket] = 0;
+    buckets[d.bucket] += Number(d.amount || 0);
+  });
+
+  // Draw pie and stats based on aggregated buckets (which are sums of categories-filhas)
+  drawPieFromBuckets(buckets);
+  renderBudgetStatsWithDetails({fixed:fixedV,invest:investV,save:saveV,fun:funV}, buckets, details);
+  renderBucketBarsWithDetails({fixed:fixedV,invest:investV,save:saveV,fun:funV}, buckets, details);
+  renderTrendBars();
+}
+
+function drawPieFromBuckets(buckets){ const vals=[buckets.fixed||0,buckets.invest||0,buckets.save||0,buckets.fun||0]; const labels=['Custos Fixos','Investimentos','Economias','Gasto sem Culpa']; const svg = $('pieSVG'); if(!svg) return; svg.innerHTML=''; const total = vals.reduce((a,b)=>a+b,0)||1; const cx=100,cy=100,r=80; let start=0; const colors=['#0f6f4f','#7c3aed','#ffb020','#ef4444']; for(let i=0;i<vals.length;i++){ const slice = vals[i]/total; const end = start + slice; const x1 = cx + r*Math.cos(2*Math.PI*start - Math.PI/2); const y1 = cy + r*Math.sin(2*Math.PI*start - Math.PI/2); const x2 = cx + r*Math.cos(2*Math.PI*end - Math.PI/2); const y2 = cy + r*Math.sin(2*Math.PI*end - Math.PI/2); const large = slice > 0.5 ? 1 : 0; const path = document.createElementNS('http://www.w3.org/2000/svg','path'); const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`; path.setAttribute('d', d); path.setAttribute('fill', colors[i%colors.length]); path.setAttribute('opacity','0.95'); svg.appendChild(path); if(slice>0.03){ const mid = start + slice/2; const lx = cx + (r+18)*Math.cos(2*Math.PI*mid - Math.PI/2); const ly = cy + (r+18)*Math.sin(2*Math.PI*mid - Math.PI/2); const txt = document.createElementNS('http://www.w3.org/2000/svg','text'); txt.setAttribute('x', lx); txt.setAttribute('y', ly); txt.setAttribute('font-size', '10'); txt.setAttribute('text-anchor','middle'); txt.setAttribute('fill','#111'); txt.textContent = labels[i]; svg.appendChild(txt); } start = end; } }
+
+function renderBudgetStatsWithDetails(budget, spent, details){ const labelsMap = {fixed:'Custos Fixos', invest:'Investimentos', save:'Economias', fun:'Gasto sem Culpa'}; const keys=['fixed','invest','save','fun']; const el = $('budgetStats'); if(!el) return; let html=''; keys.forEach(k=>{ const b=budget[k]||0; const s=spent[k]||0; const rem=b-s; const pct=b>0?Math.min(100,(s/b*100)):0; html += `<div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${labelsMap[k]}</strong><div class="small">${pct.toFixed(1)}% usado</div></div><div style="text-align:right"><div class="big">R$ ${money(s)}</div><div class="small-muted">Meta R$ ${money(b)} • Restante R$ ${money(rem>0?rem:0)}</div></div></div><div style="height:8px;background:#f1f5f9;border-radius:6px;margin:8px 0"><div style="width:${pct}%;height:8px;background:linear-gradient(90deg,var(--green),#0f6f4f);border-radius:6px"></div></div>`; const childs = Object.keys(details).filter(c=> details[c].bucket === k).sort((a,b2)=> details[b2].amount - details[a].amount).slice(0,6); if(childs.length>0){ html += '<div class="small-muted" style="margin-bottom:8px"><strong>Principais categorias:</strong> '; html += childs.map(c=> `${c} (R$ ${money(details[c].amount)})`).join(' • '); html += '</div>'; } }); el.innerHTML = html; }
+
+function renderBucketBarsWithDetails(budget, spent, details){ const el = $('bucketBars'); if(!el) return; el.innerHTML=''; const keys=['fixed','invest','save','fun']; const labels=['Custos Fixos','Investimentos','Economias','Gasto sem Culpa']; const colors=['#0f6f4f','#7c3aed','#ffb020','#ef4444']; keys.forEach((k,i)=>{ const b=budget[k]||0; const s=spent[k]||0; const pct=b>0?Math.min(1,s/b):0; const outer=document.createElement('div'); outer.className='bucket'; const childList = Object.keys(details).filter(c=> details[c].bucket===k).sort((a,b2)=> details[b2].amount - details[a].amount).slice(0,4); let childHtml=''; if(childList.length>0) childHtml = '<div class="small-muted" style="font-size:11px;margin-top:6px">Categorias: ' + childList.map(c=> `${c} (${money(details[c].amount)})`).join(', ') + '</div>'; outer.innerHTML = `<div class="label">${labels[i]}</div><div class="bar-outer"><div class="bar-inner" style="height:${pct*100}%;background:${colors[i]};"></div></div><div class="small-muted">Gasto: R$ ${money(s)} / Meta: R$ ${money(b)}</div>${childHtml}`; el.appendChild(outer); }); }
+
+function renderTrendBars(){ const arr = mergedTxList(); const now = new Date(); const months=[]; for(let i=11;i>=0;i--){ const d=new Date(now.getFullYear(), now.getMonth()-i,1); months.push({key:d.toISOString().slice(0,7), label:d.toLocaleString('pt-BR',{month:'short',year:'2-digit'}), value:0}); } arr.forEach(t=>{ if(!t.date) return; const m=t.date.slice(0,7); const obj=months.find(x=>x.key===m); if(obj) obj.value += (t.type==='income'?Number(t.value):-Number(t.value)); }); const el=$('barsTrend'); if(!el) return; el.innerHTML=''; const maxAbs=Math.max(...months.map(m=>Math.abs(m.value)),1); months.forEach(m=>{ const div=document.createElement('div'); div.className='bar'; const h=Math.round((Math.abs(m.value)/maxAbs)*100)+10; div.style.height=h+'px'; div.title=`${m.label} • R$ ${money(m.value)}`; div.innerHTML = `<div style="padding:4px 2px">${Math.round(m.value)}</div>`; el.appendChild(div); }); }
+
+// Sheets: independent spreadsheets with modal editor and optional sync
+let currentSheetEditing = null;
+let currentSheetKey = null;
+
+
+function renderSheet(title, subtitle, filterFn, sheetKey){ // enhanced with sorting and category select
+  $('overviewPanel').style.display='none'; $('transactionsPanel').style.display='none'; $('sheetPanel').style.display='block';
+  $('sheetTitle').innerText = title; $('sheetSub').innerText = subtitle;
+  const arr = loadSheet(sheetKey);
+  const content = $('sheetContent'); content.innerHTML='';
+
+  // Sorting state per sheet
+  window._sheetSort = window._sheetSort || {};
+  const state = _sheetSort[sheetKey] || {key:'date', dir:'desc'};
+
+  // Header with add row
+  const form = document.createElement('div'); form.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap">
+      <input type="date" id="sheet_add_date" />
+      <select id="sheet_add_type"><option value="expense">Despesa</option><option value="income">Receita</option></select>
+      <input id="sheet_add_desc" placeholder="Descrição" style="min-width:160px" />
+      <select id="sheet_add_cat"></select>
+      <input id="sheet_add_val" placeholder="Valor (R$)" />
+      <label style="display:flex;align-items:center;gap:6px;margin-left:6px"><input type="checkbox" id="sheet_add_sync" /> <small>Sincronizar com lista geral</small></label>
+      <button class="btn" id="sheet_add_btn">Adicionar</button>
+    </div>`;
+  content.appendChild(form);
+  // populate category select from global categories
+  const addSel = $('sheet_add_cat');
+  const cats = loadCats().slice().sort((a,b)=> a.localeCompare(b,'pt-BR'));
+  cats.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; addSel.appendChild(o); });
+
+  $('sheet_add_btn').onclick = ()=> sheetAddEntry(sheetKey);
+
+  // Build table
+  const table = document.createElement('table'); table.className='sheet-table';
+  table.innerHTML = `<thead><tr>
+      <th id="th_date" style="cursor:pointer">Data</th>
+      <th id="th_desc" style="cursor:pointer">Descrição</th>
+      <th id="th_cat" style="cursor:pointer">Categoria</th>
+      <th id="th_val" style="text-align:right;cursor:pointer">Valor (R$)</th>
+      <th style="text-align:right">Ações</th>
+    </tr></thead>`;
+  const tbody = document.createElement('tbody');
+
+  function sortArr(a){
+    const k = state.key, d = state.dir==='asc'?1:-1;
+    return a.slice().sort((x,y)=>{
+      if(k==='date'){ return (Date.parse(x.date||0)-Date.parse(y.date||0))*d; }
+      if(k==='desc'){ return String(x.desc||'').localeCompare(String(y.desc||''))*d; }
+      if(k==='cat'){ return String(x.category||'').localeCompare(String(y.category||''))*d; }
+      if(k==='val'){ return ((x.value||0)-(y.value||0))*d; }
+      return 0;
+    });
+  }
+  const sorted = sortArr(arr);
+
+  sorted.forEach((t, idx)=>{
+    const tr = document.createElement('tr');
+    const syncedMark = t.syncedId? ' <span class="tag-muted">(sincronizado)</span>':'';
+    // category select for each row when editing via modal; here just displaying. Editing goes via modal.
+    tr.innerHTML = `<td>${t.date||''}</td>
+      <td>${t.desc||''}${syncedMark}</td>
+      <td>${t.category||''}</td>
+      <td style="text-align:right">${t.type==='income'?'+ ':'- '}R$ ${money(t.value||0)}</td>
+      <td style="text-align:right">
+        <button class="btn secondary" onclick="openSheetEditModal('${sheetKey}', ${arr.indexOf(t)})">Editar</button>
+        <button class="btn secondary" onclick="sheetRemoveEntry('${sheetKey}', ${arr.indexOf(t)})">Remover</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  content.appendChild(table);
+
+  const foot = document.createElement('div'); foot.style.marginTop='8px';
+  const total = sorted.reduce((s, t)=> s + Number(t.value||0), 0);
+  foot.innerHTML = `<div style="display:flex;justify-content:space-between"><div class="small">Registros: ${sorted.length}</div><div class="big">Total: R$ ${money(total)}</div></div>`;
+  content.appendChild(foot);
+
+  function toggle(key){
+    if(state.key===key){ state.dir = state.dir==='asc'?'desc':'asc'; }
+    else { state.key=key; state.dir='asc'; }
+    _sheetSort[sheetKey]=state;
+    renderSheet(title, subtitle, null, sheetKey);
+  }
+  table.querySelector('#th_date').onclick = ()=> toggle('date');
+  table.querySelector('#th_desc').onclick = ()=> toggle('desc');
+  table.querySelector('#th_cat').onclick = ()=> toggle('cat');
+  table.querySelector('#th_val').onclick = ()=> toggle('val');
+}
+function sheetAddEntry(sheetKey){ const date = $('sheet_add_date').value || new Date().toISOString().slice(0,10); const type = $('sheet_add_type').value; const desc = ($('sheet_add_desc').value||''); const category = ($('sheet_add_cat') && $('sheet_add_cat').value) || (type==='expense'?'Despesa':'Receita'); const value = parseNum($('sheet_add_val').value||'0'); const sync = $('sheet_add_sync')? $('sheet_add_sync').checked : false; if(!value) return customAlert('Informe um valor válido'); const arr = loadSheet(sheetKey); const entry = {id: Date.now(), date, type, desc, category, value}; if(sync){ const main = loadTx(); const tx = {id: Date.now()+Math.floor(Math.random()*1000), date, type, category: entry.category, desc: entry.desc, value: entry.value, imported:false}; main.unshift(tx); saveTx(main); entry.syncedId = tx.id; } arr.unshift(entry); saveSheet(sheetKey, arr); renderSheet(document.getElementById('sheetTitle').innerText, document.getElementById('sheetSub').innerText, null, sheetKey); renderTxList(); renderBudget(); }
+
+function sheetRemoveEntry(sheetKey, idx){ if(!customConfirm('Remover este item da planilha?')) return; const arr = loadSheet(sheetKey); const item = arr[idx]; if(item && item.syncedId){ let main = loadTx(); main = main.filter(t=> t.id !== item.syncedId); saveTx(main); } arr.splice(idx,1); saveSheet(sheetKey, arr); renderSheet(document.getElementById('sheetTitle').innerText, document.getElementById('sheetSub').innerText, null, sheetKey); renderTxList(); renderBudget(); }
+
+function openSheetEditModal(sheetKey, idx){ const arr = loadSheet(sheetKey); const item = arr[idx]; if(!item) return customAlert('Item não encontrado'); currentSheetEditing = idx; currentSheetKey = sheetKey; $('sheetEditDate').value = item.date||''; $('sheetEditType').value = item.type||'expense'; $('sheetEditDesc').value = item.desc||''; $('sheetEditCat').value = item.category||''; $('sheetEditVal').value = money(item.value||0); $('modalSheetEdit').style.display='flex'; }
+
+function closeSheetModal(e){ if(e && e.target && e.target.id==='modalSheetEdit'){ $('modalSheetEdit').style.display='none'; currentSheetEditing=null; currentSheetKey=null; } else if(!e){ $('modalSheetEdit').style.display='none'; currentSheetEditing=null; currentSheetKey=null; } }
+
+function saveSheetEdit(){ if(currentSheetKey===null || currentSheetEditing===null) return; const arr = loadSheet(currentSheetKey); const item = arr[currentSheetEditing]; if(!item) return; item.date = $('sheetEditDate').value||item.date; item.type = $('sheetEditType').value; item.desc = $('sheetEditDesc').value||''; item.category = $('sheetEditCat').value||''; item.value = parseNum($('sheetEditVal').value||'0'); if(item.syncedId){ const main = loadTx(); const i = main.findIndex(t=> t.id === item.syncedId); if(i>=0){ main[i].date = item.date; main[i].type = item.type; main[i].desc = item.desc; main[i].category = item.category; main[i].value = item.value; saveTx(main); } } saveSheet(currentSheetKey, arr); closeSheetModal(); renderSheet(document.getElementById('sheetTitle').innerText, document.getElementById('sheetSub').innerText, null, currentSheetKey); renderTxList(); renderBudget(); }
+
+function deleteSheetEditing(){ if(currentSheetKey===null || currentSheetEditing===null) return; if(!customConfirm('Remover este item da planilha?')) return; const arr = loadSheet(currentSheetKey); const item = arr[currentSheetEditing]; if(item && item.syncedId){ let main = loadTx(); main = main.filter(t=> t.id !== item.syncedId); saveTx(main); } arr.splice(currentSheetEditing,1); saveSheet(currentSheetKey, arr); closeSheetModal(); renderSheet(document.getElementById('sheetTitle').innerText, document.getElementById('sheetSub').innerText, null, currentSheetKey); renderTxList(); renderBudget(); }
+
+// Budget rendering helper wrappers (keeps older names)
+function renderBudgetStatsWithSpent(){} // placeholder kept for compatibility
+
+// Export/Import helpers for UI
+function exportJSON(){ const data={settings: loadSettings(), transactions: loadTx(), recurring: loadRec(), categories: loadCats(), mapping: loadCatMap(), keywords: loadKeywords()}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='financas_export_v6.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
+function exportCSV(){ const arr = loadTx(); let csv='date,description,category,type,value\n'; arr.forEach(t=> csv += `${t.date},"${(t.desc||'').replace(/"/g,'""')}","${t.category}",${t.type},${t.value}\n`); const blob = new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='transacoes_v6.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
+
+// Simple UI helpers for categories keywords manager
+function renderKeywordsManager(){ const kws = loadKeywords(); const el = $('keywordsManager'); el.innerHTML=''; const cats = loadCats().slice().sort((a,b)=> a.localeCompare(b,'pt-BR')); cats.forEach(cat=>{ const wrap=document.createElement('div'); wrap.style.marginBottom='10px'; const title=document.createElement('div'); title.innerHTML=`<strong>${cat}</strong>`; wrap.appendChild(title); const row=document.createElement('div'); row.className='keyword-row'; const input=document.createElement('input'); input.placeholder='nova palavra-chave'; input.style.flex='1'; const btnAdd=document.createElement('button'); btnAdd.className='btn'; btnAdd.textContent='Adicionar'; btnAdd.onclick = ()=>{ const v=input.value.trim(); if(!v) return; const kcur = kws[cat]||[]; if(kcur.includes(v.toLowerCase())) return customAlert('Keyword já existe'); kcur.push(v.toLowerCase()); kws[cat]=kcur; saveKeywords(kws); input.value=''; renderKeywordsManager(); renderKeywordsPreview(); }; row.appendChild(input); row.appendChild(btnAdd); wrap.appendChild(row); const list=document.createElement('div'); list.style.marginTop='6px'; const items = (kws[cat]||[]).slice().sort((a,b)=> a.localeCompare(b,'pt-BR')); items.forEach((kw,i)=>{ const d=document.createElement('div'); d.style.display='flex'; d.style.justifyContent='space-between'; d.style.alignItems='center'; d.style.marginBottom='4px'; d.innerHTML = `<div class="small-muted">${kw}</div>`; const b=document.createElement('button'); b.className='btn secondary'; b.style.padding='6px'; b.textContent='Remover'; b.onclick = ()=>{ if(!customConfirm('Remover keyword "'+kw+'" de '+cat+'?')) return; const arr = kws[cat].filter(x=>x!==kw); kws[cat]=arr; saveKeywords(kws); renderKeywordsManager(); renderKeywordsPreview(); }; d.appendChild(b); list.appendChild(d); }); wrap.appendChild(list); el.appendChild(wrap); }); $('modalKeywords').style.display='flex'; }
+function closeKeywords(e){ if(e && e.target && e.target.id==='modalKeywords'){ $('modalKeywords').style.display='none'; } else $('modalKeywords').style.display='none'; }
+
+// Sheet navigation wrappers
+function showReceber(){ renderSheet('Contas a RECEBER','Recebimentos esperados', tx=> tx.type==='income', KEY_SHEET_RECEBER); }
+function showPagar(){ renderSheet('Contas a PAGAR','Despesas e contas a pagar', tx=> tx.type==='expense', KEY_SHEET_PAGAR); }
+function showDividas(){ renderSheet('Dívidas/Empréstimos','Dívidas e empréstimos ativos', tx=> { const cat=(tx.category||'').toLowerCase(); return cat.includes('empréstimo')||cat.includes('emprestimo')||cat.includes('dívid')||cat.includes('divid'); }, KEY_SHEET_DIVIDAS); }
+function showVisaoGeral(){ $('sheetPanel').style.display='none'; $('overviewPanel').style.display='block'; $('transactionsPanel').style.display='block'; }
+
+// Simple recurring/application and reset
+function resetAll(){ if(!customConfirm('Resetar todos os dados locais?')) return; [KEY_SETTINGS, KEY_TX, KEY_REC, KEY_CATS, KEY_CATMAP, KEY_KEYWORDS, KEY_SHEET_RECEBER, KEY_SHEET_PAGAR, KEY_SHEET_DIVIDAS].forEach(k=> localStorage.removeItem(k)); initUI(); }
+
+// Filters initialiser
+document.addEventListener('DOMContentLoaded', ()=>{ initUI(); window.showReceber = showReceber; window.showPagar = showPagar; window.showDividas = showDividas; window.showVisaoGeral = showVisaoGeral; window.addTransactionFromForm = addTransactionFromForm; window.importFile = importFile; window.exportJSON = exportJSON; window.exportCSV = exportCSV; window.resetAll = resetAll; window.renderKeywordsManager = renderKeywordsManager; window.sheetAddEntry = sheetAddEntry; window.sheetRemoveEntry = sheetRemoveEntry; window.openEdit = openEdit; window.openSheetEditModal = openSheetEditModal; window.saveSheetEdit = saveSheetEdit; window.deleteSheetEditing = deleteSheetEditing; window.closeModal = closeModal; window.closeSheetModal = closeSheetModal; window.applyTxFilter = applyTxFilter; window.clearTxFilter = clearTxFilter; window.onFilterModeChange = onFilterModeChange; });
+
+
+// --------------------
+// UI handler functions (no name collisions)
+// --------------------
+function uiCalcBudget(){
+  // read UI inputs into settings, persist and re-render
+  const s = {
+    income: parseNum($('inputIncome').value),
+    p_fixed: parseInt($('p_fixed').value) || 0,
+    p_invest: parseInt($('p_invest').value) || 0,
+    p_save: parseInt($('p_save').value) || 0,
+    p_fun: parseInt($('p_fun').value) || 0
+  };
+  saveSettings(s);
+  $('hdrIncome').innerText = money(s.income);
+  renderBudget();
+}
+
+function uiSaveSettings(){
+  uiCalcBudget();
+  customAlert('Configurações salvas');
+}
+
+// expose UI functions globally in case some other code expects them
+window.uiSaveSettings = uiSaveSettings;
+window.uiCalcBudget = uiCalcBudget;
+
+
+// end of script
+
+// ----- v7 enhancements -----
+
+// Global cache for merged transactions
+let _mergedCache = null;
+let _cacheDirty = true;
+
+function markTxCacheDirty(){ _cacheDirty = true; }
+function mergedTxListCached(){
+  if(!_cacheDirty && _mergedCache) return _mergedCache.slice();
+  const persisted = loadTx();
+  const merged = persisted.slice().sort((a,b)=>{
+    const da = a.date?Date.parse(a.date):0;
+    const db = b.date?Date.parse(b.date):0;
+    return db-da;
+  });
+  _mergedCache = merged;
+  _cacheDirty = false;
+  return merged.slice();
+}
+
+// Override original callers
+function mergedTxList(){ return mergedTxListCached(); }
+const _saveTxOrig = saveTx;
+saveTx = function(arr){ _saveTxOrig(arr); markTxCacheDirty(); }
+
+// Sorting
+function sortTransactions(arr, key, dir){
+  const mul = dir==='asc' ? 1 : -1;
+  return arr.sort((a,b)=>{
+    if(key==='value'){ return (a.value - b.value)*mul; }
+    if(key==='category'){ return (String(a.category||'').localeCompare(String(b.category||'')))*mul; }
+    // date default
+    const da = a.date?Date.parse(a.date):0;
+    const db = b.date?Date.parse(b.date):0;
+    return (da - db)*mul;
+  });
+}
+function applySorting(){
+  renderTxList(); // render uses current filter; we hook sorting there by global state
+}
+
+let _sortKey = 'date', _sortDir = 'desc';
+if(document.getElementById('txSortKey')){
+  document.getElementById('txSortKey').addEventListener('change', e=>{ _sortKey = e.target.value; renderTxList(); });
+  document.getElementById('txSortDir').addEventListener('change', e=>{ _sortDir = e.target.value; renderTxList(); });
+}
+
+// Replace alerts/confirms with custom modals
+function showToast(msg){ const t=$('toast'); if(!t) return; t.textContent=msg; t.style.display='block'; setTimeout(()=>{ t.style.display='none'; }, 2200); }
+function customAlert(msg){ const m=$('alertModal'); $('alertText').innerHTML = msg; m.style.display='flex'; $('alertOk').onclick=()=>{ m.style.display='none'; }; }
+function customConfirm(msg, onConfirm){ const m=$('confirmModal'); $('confirmText').innerHTML=msg; m.style.display='flex'; $('confirmOk').onclick=()=>{ m.style.display='none'; onConfirm&&onConfirm(true); }; $('confirmCancel').onclick=()=>{ m.style.display='none'; onConfirm&&onConfirm(false); }; }
+
+// Monkey-patch legacy uses by shadowing
+window._nativeAlert = window.alert;
+window._nativeConfirm = window.confirm;
+window.alert = function(m){ customAlert(String(m)); };
+window.confirm = function(m){ let decided = null; customConfirm(String(m), v=>{ decided = !!v; }); return decided===true; } // best-effort; legacy calls will not block
+
+// JSON restore
+const restoreInput = document.getElementById('restoreInput');
+if(restoreInput){
+  restoreInput.addEventListener('change', async (e)=>{
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const txt = await f.text();
+    try{
+      const obj = JSON.parse(txt);
+      if(obj.settings) save(KEY_SETTINGS,obj.settings);
+      if(obj.transactions) save(KEY_TX,obj.transactions), markTxCacheDirty();
+      if(obj.recurring) save(KEY_REC,obj.recurring);
+      if(obj.categories) save(KEY_CATS,obj.categories);
+      if(obj.mapping) save(KEY_CATMAP,obj.mapping);
+      if(obj.keywords) save(KEY_KEYWORDS,obj.keywords);
+      showToast('Importação concluída');
+      initUI();
+    }catch(err){
+      customAlert('JSON inválido');
+    }
+    restoreInput.value = '';
+  });
+}
+
+// Currency validation sanitizers
+function attachMoneySanitizer(id){
+  const el=$(id); if(!el) return;
+  el.addEventListener('input', ()=>{
+    let v = el.value.replace(/[^\d,.-]/g,'');
+    // keep only last comma as decimal
+    const parts = v.split(',');
+    if(parts.length>2){ v = parts.slice(0,-1).join('')+','+parts.slice(-1)[0]; }
+    el.value = v;
+  });
+}
+['recValue','txValue','editVal','sheet_add_val','sheetEditVal'].forEach(attachMoneySanitizer);
+
+// Recorrências x Parcelamentos
+function addRecurring(){
+  const desc = ($('recDesc').value||'').trim();
+  const value = parseNum($('recValue').value);
+  const type = $('recType').value;
+  const freq = $('recFreq').value;
+  const startDate = $('recDate').value;
+  const subType = $('recSubType')? $('recSubType').value : 'recurrence';
+  const totalParcels = parseInt(($('recTotalParcels') && $('recTotalParcels').value)||0) || 0;
+  const remainParcels = parseInt(($('recRemainParcels') && $('recRemainParcels').value)||0) || totalParcels;
+
+  if(!desc||!value||!startDate){ customAlert('Preencha descrição, valor e data inicial'); return; }
+  if(subType==='installment' && totalParcels<=0){ customAlert('Informe o total de parcelas'); return; }
+
+  const rec = {id: Date.now()+Math.floor(Math.random()*1000), desc, value, type, freq, startDate, subType, totalParcels, remainParcels};
+  const arr = loadRec(); arr.unshift(rec); saveRec(arr); renderRecurring(); applySingleRecurring(rec);
+  $('recDesc').value=''; $('recValue').value=''; if($('recDate')) $('recDate').valueAsDate=new Date();
+  renderTxList(); renderBudget(); showToast('Recorrência adicionada');
+}
+
+function renderRecurring(){
+  const arr = loadRec(); const el = $('recList'); el.innerHTML='';
+  if(arr.length===0){ el.innerHTML='<div class="small-muted">Nenhuma recorrência cadastrada</div>'; return; }
+  arr.forEach(r=>{
+    const d = document.createElement('div'); d.className='rec-row';
+    const labelType = r.subType==='installment' ? 'Parcelamento' : 'Recorrência';
+    const extra = r.subType==='installment' ? ` • ${r.remainParcels||0}/${r.totalParcels} parcelas` : '';
+    d.innerHTML = `<div style="flex:1"><strong>${r.desc}</strong><div class="small-muted">${labelType} • ${r.freq} • ${r.type} • R$ ${money(r.value)} • Início: ${r.startDate}${extra}</div></div><div style="display:flex;gap:6px"><button class="btn secondary" onclick="removeRec(${r.id})">Remover</button></div>`;
+    el.appendChild(d);
+  });
+}
+
+function removeRec(id){
+  customConfirm('Remover recorrência?', ok=>{
+    if(!ok) return;
+    let arr = loadRec();
+    arr = arr.filter(r=> r.id !== id);
+    saveRec(arr); renderRecurring();
+  });
+}
+
+function applySingleRecurring(rec){
+  const appliedKey = KEY_REC + '_applied';
+  const applied = load(appliedKey, {});
+  const mk = monthKey();
+  applied[mk] = applied[mk] || [];
+  if(applied[mk].includes(rec.id)) return;
+
+  // compute date for this month based on day from start
+  const day = rec.startDate ? (rec.startDate.slice(8,10) || '01') : '01';
+  const d = new Date();
+  const mm = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${day}`;
+
+  if(rec.subType === 'installment'){
+    if((rec.remainParcels||0) <= 0){ return; }
+    const tx = {id: Date.now()+Math.floor(Math.random()*1000), date:mm, type:rec.type, category:'Parcelamento', desc:`${rec.desc} (${rec.totalParcels - (rec.remainParcels||rec.totalParcels) + 1}/${rec.totalParcels})`, value:rec.value, imported:false};
+    const arr = loadTx(); arr.unshift(tx); saveTx(arr);
+    // decrement remaining and persist
+    const recs = loadRec();
+    const ix = recs.findIndex(x=>x.id===rec.id);
+    if(ix>=0){ recs[ix].remainParcels = Math.max(0, (recs[ix].remainParcels||rec.totalParcels) - 1); saveRec(recs); }
+  } else {
+    const tx = {id: Date.now()+Math.floor(Math.random()*1000), date:mm, type:rec.type, category:'Recorrente', desc:rec.desc, value:rec.value, imported:false};
+    const arr = loadTx(); arr.unshift(tx); saveTx(arr);
+  }
+  applied[mk].push(rec.id);
+  save(appliedKey, applied);
+}
+
+// Tie cache invalidation to other mutations
+const _saveRecOrig = saveRec;
+saveRec = function(arr){ _saveRecOrig(arr); }
+
+// Render hook: integrate sorting
+function renderTxList(){
+  const all = mergedTxList();
+  const arr = sortTransactions(applyDateFilterToArr(all), _sortKey, _sortDir);
+  const el = $('txList'); el.innerHTML=''; $('txCount').innerText = arr.length;
+  arr.slice(0,500).forEach(t=>{
+    const div = document.createElement('div'); div.className='tx';
+    const importInfo = t.importedSource? `<span class="tag-muted">(${t.importedSource})</span>` : '';
+    const tempLabel = t.temp? `<span class="tag-muted">[temp]</span>` : '';
+    div.innerHTML = `<div><div style="font-weight:700">${t.category} ${importInfo} ${tempLabel}</div><div class="small-muted">${t.date} • ${t.desc||''}</div></div><div style="text-align:right"><div style="font-weight:700;color:${t.type==='income'?'var(--income)':'var(--danger)'}">${t.type==='income'?'+ ':'- '}R$ ${money(t.value)}</div><div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button class="btn secondary" onclick="openEdit(${t.id})">Editar</button><button class="btn secondary" onclick="removeTx(${t.id})">Remover</button></div></div>`;
+    el.appendChild(div);
+  });
+}
+
+// Remove tx with confirm
+function removeTx(id){
+  customConfirm('Remover esta transação?', ok=>{
+    if(!ok) return;
+    let arr = loadTx(); arr = arr.filter(t=> t.id !== id); saveTx(arr); renderTxList(); renderBudget();
+  });
+}
+
+// Replace other confirm/alert call sites via wrappers
+function deleteEditing(){ if(!editingId) return; customConfirm('Remover esta transação?', ok=>{ if(!ok) return; removeTx(editingId); closeModal(); }); }
+
+function sheetRemoveEntry(sheetKey, idx){
+  customConfirm('Remover este item da planilha?', ok=>{
+    if(!ok) return;
+    const arr = loadSheet(sheetKey);
+    const item = arr[idx];
+    if(item && item.syncedId){ let main = loadTx(); main = main.filter(t=> t.id !== item.syncedId); saveTx(main); }
+    arr.splice(idx,1);
+    saveSheet(sheetKey, arr);
+    renderSheet(document.getElementById('sheetTitle').innerText, document.getElementById('sheetSub').innerText, null, sheetKey);
+    renderTxList(); renderBudget();
+  });
+}
+
+function deleteSheetEditing(){
+  if(currentSheetKey===null || currentSheetEditing===null) return;
+  customConfirm('Remover este item da planilha?', ok=>{
+    if(!ok) return;
+    const arr = loadSheet(currentSheetKey);
+    const item = arr[currentSheetEditing];
+    if(item && item.syncedId){ let main = loadTx(); main = main.filter(t=> t.id !== item.syncedId); saveTx(main); }
+    arr.splice(currentSheetEditing,1);
+    saveSheet(currentSheetKey, arr);
+    closeSheetModal();
+    renderSheet(document.getElementById('sheetTitle').innerText, document.getElementById('sheetSub').innerText, null, currentSheetKey);
+    renderTxList(); renderBudget();
+  });
+}
+
+// Budget extras: saldo acumulado and line chart
+function computeMonthlyNetSeries(){
+  const arr = mergedTxList();
+  const now = new Date();
+  const months=[];
+  for(let i=11;i>=0;i--){
+    const d=new Date(now.getFullYear(), now.getMonth()-i,1);
+    const key=d.toISOString().slice(0,7);
+    months.push({key, label:d.toLocaleString('pt-BR',{month:'short',year:'2-digit'}), income:0, expense:0});
+  }
+  arr.forEach(t=>{
+    if(!t.date) return;
+    const m=t.date.slice(0,7);
+    const obj=months.find(x=>x.key===m);
+    if(!obj) return;
+    if(t.type==='income') obj.income+=Number(t.value); else obj.expense+=Number(t.value);
+  });
+  // projected net from settings
+  const s = loadSettings();
+  const projNet = s.income * (1 - (s.p_fixed+s.p_invest+s.p_save+s.p_fun)/100);
+  return months.map(m=>({label:m.label, real:(m.income - m.expense), proj: projNet}));
+}
+
+function renderSaldoAcumulado(){
+  const series = computeMonthlyNetSeries();
+  let acc = 0; series.forEach(p=> acc += p.real);
+  const el = $('saldoAcumulado'); if(el) el.textContent = 'R$ ' + money(acc);
+}
+
+function renderLineChart(){
+  const series = computeMonthlyNetSeries();
+  const svg = $('lineChart'); if(!svg) return; svg.innerHTML='';
+  const W=600,H=220, pad=30;
+  const xs = (i)=> pad + i*((W-2*pad)/Math.max(1,series.length-1));
+  const reals = series.map(p=>p.real);
+  const projs = series.map(p=>p.proj);
+  const all = reals.concat(projs);
+  const minV = Math.min(0, ...all);
+  const maxV = Math.max(...all, 1);
+  const ys = (v)=> H - pad - ((v - minV)/(maxV - minV))*(H-2*pad);
+  // axes
+  const axisX = document.createElementNS('http://www.w3.org/2000/svg','line');
+  axisX.setAttribute('x1', pad); axisX.setAttribute('y1', H-pad);
+  axisX.setAttribute('x2', W-pad); axisX.setAttribute('y2', H-pad);
+  axisX.setAttribute('stroke', '#e5e7eb'); svg.appendChild(axisX);
+  const axisY = document.createElementNS('http://www.w3.org/2000/svg','line');
+  axisY.setAttribute('x1', pad); axisY.setAttribute('y1', pad);
+  axisY.setAttribute('x2', pad); axisY.setAttribute('y2', H-pad);
+  axisY.setAttribute('stroke', '#e5e7eb'); svg.appendChild(axisY);
+  function pathFrom(vals){
+    return vals.map((v,i)=> (i===0?'M':'L') + ' ' + xs(i) + ' ' + ys(v)).join(' ');
+  }
+  function addPath(d, stroke){
+    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('d', d); p.setAttribute('fill','none'); p.setAttribute('stroke', stroke); p.setAttribute('stroke-width','2');
+    svg.appendChild(p);
+  }
+  addPath(pathFrom(projs), '#7c3aed'); // projection
+  addPath(pathFrom(reals), '#0f6f4f'); // real
+  // labels month
+  series.forEach((p,i)=>{
+    const tx = document.createElementNS('http://www.w3.org/2000/svg','text');
+    tx.setAttribute('x', xs(i)); tx.setAttribute('y', H-8); tx.setAttribute('font-size','10'); tx.setAttribute('text-anchor','middle'); tx.textContent=p.label;
+    svg.appendChild(tx);
+  });
+}
+
+// Hook into renderBudget to draw extras
+const _renderBudgetOrig = renderBudget;
+renderBudget = function(){ _renderBudgetOrig(); renderSaldoAcumulado(); renderLineChart(); }
+
+// Improve input category select behavior for custom category field visibility
+(function(){
+  const sel = $('txCategorySelect'); if(!sel) return;
+  sel.addEventListener('change', ()=>{
+    if(sel.value==='__custom__'){ $('txCategoryCustom').style.display='block'; } else { $('txCategoryCustom').style.display='none'; }
+  });
+})();
+
+// Safer importFile errors
+const _importFileOrig = importFile;
+importFile = function(){
+  try{ _importFileOrig(); }catch(err){ customAlert('Erro ao importar: ' + (err&&err.message?err.message:String(err))); }
+}
+
+// UI init: connect installments row visibility to subtype
+document.addEventListener('DOMContentLoaded', ()=>{
+  const st = $('recSubType'); const row = $('installmentsRow');
+  if(st && row){
+    const upd = ()=>{ row.style.display = st.value==='installment' ? 'flex':'none'; };
+    st.addEventListener('change', upd); upd();
+  }
+});
+
+// Populate category selects alphabetically
+function populateCategorySelectAlpha(sel){
+  if(!sel) return;
+  sel.innerHTML='';
+  const cats = loadCats().slice().sort((a,b)=> a.localeCompare(b,'pt-BR'));
+  cats.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
+}
+const _openSheetEditModalOrig = openSheetEditModal;
+openSheetEditModal = function(sheetKey, idx){
+  const arr = loadSheet(sheetKey);
+  const item = arr[idx]; if(!item) return customAlert('Item não encontrado');
+  currentSheetEditing = idx; currentSheetKey = sheetKey;
+  $('sheetEditDate').value = item.date||'';
+  $('sheetEditType').value = item.type||'expense';
+  $('sheetEditDesc').value = item.desc||'';
+  populateCategorySelectAlpha($('sheetEditCat'));
+  $('sheetEditCat').value = item.category||'';
+  $('sheetEditVal').value = money(item.value||0);
+  $('modalSheetEdit').style.display='flex';
+}
+
+
+// ----- Rec Manager -----
+let _recTab = 'income'; // 'income' | 'expense' | 'installment'
+function openRecManager(tab){
+  _recTab = tab==='installment' ? 'installment' : (tab==='expense' ? 'expense' : 'income');
+  $('recManagerModal').style.display='flex';
+  $('mgrDate').valueAsDate = new Date();
+  updateRecTabUI();
+  renderRecTable();
+}
+function closeRecManager(e){
+  if(e && e.target && e.target.id==='recManagerModal'){ $('recManagerModal').style.display='none'; return; }
+  $('recManagerModal').style.display='none';
+}
+function updateRecTabUI(){
+  const income = $('tabRecIncome'), expense = $('tabRecExpense'), inst = $('tabRecInstallment');
+  [income,expense,inst].forEach(b=>{ if(b) b.className='btn secondary'; });
+  if(_recTab==='income') income.className='btn';
+  if(_recTab==='expense') expense.className='btn';
+  if(_recTab==='installment') inst.className='btn';
+  const st = $('mgrSubType'), pw=$('mgrParcelsWrap'), rw=$('mgrRemainWrap');
+  if(_recTab==='installment'){ st.value='installment'; pw.style.display='inline-block'; rw.style.display='inline-block'; }
+  else { st.value='recurrence'; pw.style.display='none'; rw.style.display='none'; }
+}
+function mgrAdd(){
+  const desc = ($('mgrDesc').value||'').trim();
+  const value = parseNum($('mgrValue').value);
+  const type = _recTab==='income' ? 'income' : 'expense';
+  const freq = $('mgrFreq').value;
+  const startDate = $('mgrDate').value;
+  const subType = $('mgrSubType').value;
+  const totalParcels = parseInt(($('mgrTotalParcels') && $('mgrTotalParcels').value)||0) || 0;
+  const remainParcels = parseInt(($('mgrRemainParcels') && $('mgrRemainParcels').value)||0) || totalParcels;
+
+  if(!desc||!value||!startDate){ customAlert('Preencha descrição, valor e data inicial'); return; }
+  if(subType==='installment' && totalParcels<=0){ customAlert('Informe o total de parcelas'); return; }
+
+  const rec = {id: Date.now()+Math.floor(Math.random()*1000), desc, value, type, freq, startDate, subType, totalParcels, remainParcels};
+  const arr = loadRec(); arr.unshift(rec); saveRec(arr);
+  $('mgrDesc').value=''; $('mgrValue').value='';
+  renderRecurring(); renderRecTable(); showToast('Adicionado');
+}
+function renderRecTable(){
+  const body = $('recTableBody'); body.innerHTML='';
+  const arr = loadRec().filter(r=> _recTab==='installment' ? r.subType==='installment' : (r.type===_recTab && (r.subType||'recurrence')!=='installment'));
+  arr.forEach(r=>{
+    const tr = document.createElement('tr');
+    const labelType = r.subType==='installment' ? `${r.remainParcels||0}/${r.totalParcels} parcelas` : r.freq;
+    tr.innerHTML = `<td>${r.desc}</td>
+      <td>${r.freq}</td>
+      <td>${r.subType==='installment'?'Parcelamento':'Recorrência'}</td>
+      <td>${r.startDate}</td>
+      <td style="text-align:right">R$ ${money(r.value)}</td>
+      <td style="text-align:right">
+        <button class="btn secondary" onclick="recEdit(${r.id})">Editar</button>
+        <button class="btn secondary" onclick="recRemove(${r.id})">Remover</button>
+      </td>`;
+    body.appendChild(tr);
+  });
+}
+function recRemove(id){
+  customConfirm('Remover?', ok=>{
+    if(!ok) return;
+    let arr = loadRec(); arr = arr.filter(r=> r.id !== id); saveRec(arr);
+    renderRecurring(); renderRecTable();
+  });
+}
+let _recEditingId = null;
+function recEdit(id){
+  _recEditingId = id;
+  const r = loadRec().find(x=>x.id===id); if(!r) return;
+  $('mgrDesc').value = r.desc||'';
+  $('mgrValue').value = money(r.value||0);
+  $('mgrDate').value = r.startDate||'';
+  $('mgrFreq').value = r.freq||'monthly';
+  $('mgrSubType').value = r.subType||'recurrence';
+  if(r.subType==='installment'){ $('mgrTotalParcels').value = r.totalParcels||0; $('mgrRemainParcels').value = r.remainParcels||0; }
+  updateRecTabUI();
+  // change Add to Save
+  const btns = document.querySelectorAll('#recForm .btn');
+  if(btns.length){ btns[btns.length-1].textContent='Salvar'; btns[btns.length-1].onclick = recSave; }
+}
+function recSave(){
+  if(_recEditingId===null) return;
+  const arr = loadRec();
+  const ix = arr.findIndex(x=>x.id===_recEditingId);
+  if(ix<0) return;
+  const r = arr[ix];
+  r.desc = ($('mgrDesc').value||'').trim();
+  r.value = parseNum($('mgrValue').value);
+  r.startDate = $('mgrDate').value;
+  r.freq = $('mgrFreq').value;
+  r.subType = $('mgrSubType').value;
+  if(r.subType==='installment'){
+    r.totalParcels = parseInt(($('mgrTotalParcels').value)||0)||0;
+    r.remainParcels = parseInt(($('mgrRemainParcels').value)||0)||0;
+  } else {
+    r.totalParcels = 0; r.remainParcels = 0;
+  }
+  saveRec(arr);
+  // restore Add button
+  const btns = document.querySelectorAll('#recForm .btn');
+  if(btns.length){ btns[btns.length-1].textContent='Adicionar'; btns[btns.length-1].onclick = mgrAdd; }
+  _recEditingId = null;
+  renderRecurring(); renderRecTable(); showToast('Atualizado');
+}
+// Tabs events
+document.addEventListener('DOMContentLoaded', ()=>{
+  const st = $('mgrSubType');
+  const pw = $('mgrParcelsWrap'), rw=$('mgrRemainWrap');
+  if(st){
+    const upd=()=>{ const isI = st.value==='installment'; pw.style.display=isI?'inline-block':'none'; rw.style.display=isI?'inline-block':'none'; };
+    st.addEventListener('change', upd); upd();
+  }
+  if($('tabRecIncome')) $('tabRecIncome').onclick=()=>{ openRecManager('income'); };
+  if($('tabRecExpense')) $('tabRecExpense').onclick=()=>{ openRecManager('expense'); };
+  if($('tabRecInstallment')) $('tabRecInstallment').onclick=()=>{ openRecManager('installment'); };
+});
+// ----- end Rec Manager -----
+
+// ----- end v7 enhancements -----
+
+</script>
+
+
+<div id="alertModal" class="alert-modal">
+  <div class="alert-card">
+    <div id="alertText"></div>
+    <div class="confirm-actions">
+      <button class="btn" id="alertOk">OK</button>
+    </div>
+  </div>
+</div>
+<div id="confirmModal" class="confirm-modal">
+  <div class="confirm-card">
+    <div id="confirmText"></div>
+    <div class="confirm-actions">
+      <button class="btn secondary" id="confirmCancel">Cancelar</button>
+      <button class="btn" id="confirmOk">Confirmar</button>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast" style="display:none"></div>
+
+
+<!-- Rec Manager Modal -->
+<div id="recManagerModal" class="modal" style="display:none" onclick="closeRecManager(event)">
+  <div class="modal-card" style="max-width:820px" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong>Gerenciar Recorrentes</strong>
+      <button class="btn secondary" onclick="closeRecManager()">Fechar</button>
+    </div>
+    <div style="margin-top:8px; display:flex; gap:8px; align-items:center">
+      <button class="btn" id="tabRecIncome">Receitas</button>
+      <button class="btn secondary" id="tabRecExpense">Despesas</button>
+      <button class="btn secondary" id="tabRecInstallment">Parcelamentos</button>
+    </div>
+    <div id="recManagerBody" style="margin-top:10px">
+      <!-- form -->
+      <div id="recForm" style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end">
+        <input id="mgrDesc" placeholder="Descrição" style="flex:2"/>
+        <input id="mgrValue" placeholder="Valor (R$)" style="flex:1"/>
+        <label><small>Início</small><input id="mgrDate" type="date"/></label>
+        <label><small>Freq.</small>
+          <select id="mgrFreq">
+            <option value="monthly">Mensal</option>
+            <option value="bimonthly">Bimestral</option>
+            <option value="yearly">Anual</option>
+          </select>
+        </label>
+        <label><small>Tipo</small>
+          <select id="mgrSubType">
+            <option value="recurrence">Recorrência</option>
+            <option value="installment">Parcelamento</option>
+          </select>
+        </label>
+        <label id="mgrParcelsWrap" style="display:none"><small>Total</small><input id="mgrTotalParcels" type="number" min="1" step="1" placeholder="12"/></label>
+        <label id="mgrRemainWrap" style="display:none"><small>Restantes</small><input id="mgrRemainParcels" type="number" min="0" step="1" placeholder="12"/></label>
+        <button class="btn" onclick="mgrAdd()">Adicionar</button>
+      </div>
+      <!-- grid/list -->
+      <div style="margin-top:10px; max-height:360px; overflow:auto">
+        <table class="sheet-table">
+          <thead>
+            <tr>
+              <th>Descrição</th>
+              <th>Freq.</th>
+              <th>Tipo</th>
+              <th>Início</th>
+              <th style="text-align:right">Valor</th>
+              <th style="text-align:right">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="recTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recorrentes Modals -->
+
+<div id="recModalIncome" class="modal" style="display:none" onclick="if(event.target.id==='recModalIncome') this.style.display='none'">
+  <div class="modal-card" style="max-width:820px" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong>Recorrentes • Receitas</strong>
+      <button class="btn secondary" onclick="document.getElementById('recModalIncome').style.display='none'">Fechar</button>
+    </div>
+    <div id="recIncomeBody" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<div id="recModalExpense" class="modal" style="display:none" onclick="if(event.target.id==='recModalExpense') this.style.display='none'">
+  <div class="modal-card" style="max-width:820px" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong>Recorrentes • Despesas</strong>
+      <button class="btn secondary" onclick="document.getElementById('recModalExpense').style.display='none'">Fechar</button>
+    </div>
+    <div id="recExpenseBody" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<div id="recModalInstallment" class="modal" style="display:none" onclick="if(event.target.id==='recModalInstallment') this.style.display='none'">
+  <div class="modal-card" style="max-width:820px" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong>Recorrentes • Parcelamentos</strong>
+      <button class="btn secondary" onclick="document.getElementById('recModalInstallment').style.display='none'">Fechar</button>
+    </div>
+    <div id="recInstallmentBody" style="margin-top:8px"></div>
+  </div>
+</div>
+
+
+<script>
+(function(){
+  function recFilter(type){
+    const all = (typeof loadRec==='function') ? loadRec() : [];
+    if(type==='installment') return all.filter(r=> (r.subType||'recurrence')==='installment');
+    return all.filter(r=> r.type===type && (r.subType||'recurrence')!=='installment');
+  }
+  function renderRecTableInto(type, bodyId){
+    const el = document.getElementById(bodyId); if(!el) return;
+    const arr = recFilter(type).slice().sort((a,b)=> (Date.parse(b.startDate||0)-Date.parse(a.startDate||0)) || String(a.desc||'').localeCompare(String(b.desc||'')));
+    const table = document.createElement('table'); table.className='sheet-table';
+    table.innerHTML = '<thead><tr><th>Descrição</th><th>Freq.</th><th>Tipo</th><th>Início</th><th style="text-align:right">Valor</th><th style="text-align:right">Ações</th></tr></thead>';
+    const tbody = document.createElement('tbody');
+    arr.forEach(r=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>'+ (r.desc||'') +'</td>' +
+        '<td>'+ (r.freq||'') +'</td>' +
+        '<td>'+ ((r.subType==='installment')?'Parcelamento':'Recorrência') +'</td>' +
+        '<td>'+ (r.startDate||'') +'</td>' +
+        '<td style="text-align:right">R$ '+ (typeof money==='function'? money(r.value||0): (r.value||0)) +'</td>' +
+        '<td style="text-align:right">' +
+          '<button class="btn secondary" onclick="recEdit('+r.id+')">Editar</button> ' +
+          '<button class="btn secondary" onclick="recRemove('+r.id+')">Remover</button>' +
+        '</td>';
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    const add = document.createElement('div');
+    add.style.marginTop='8px';
+    add.innerHTML = '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">' +
+      '<input id="rec_'+type+'_desc" placeholder="Descrição" style="flex:2"/>' +
+      '<input id="rec_'+type+'_value" placeholder="Valor (R$)"/>' +
+      '<label><small>Início</small><input id="rec_'+type+'_date" type="date"/></label>' +
+      '<label><small>Freq.</small><select id="rec_'+type+'_freq"><option value="monthly">Mensal</option><option value="bimonthly">Bimestral</option><option value="yearly">Anual</option></select></label>' +
+      (type==='installment' ? '<label><small>Total</small><input id="rec_installment_total" type="number" min="1" step="1"/></label><label><small>Restantes</small><input id="rec_installment_remain" type="number" min="0" step="1"/></label>' : '') +
+      '<button class="btn" onclick="recAddFromModal(\''+type+'\')">Adicionar</button>' +
+    '</div>';
+    el.innerHTML=''; el.appendChild(table); el.appendChild(add);
+  }
+  function openRecModalIncome(){ const m=document.getElementById('recModalIncome'); if(m){ m.style.display='flex'; renderRecTableInto('income','recIncomeBody'); } }
+  function openRecModalExpense(){ const m=document.getElementById('recModalExpense'); if(m){ m.style.display='flex'; renderRecTableInto('expense','recExpenseBody'); } }
+  function openRecModalInstallment(){ const m=document.getElementById('recModalInstallment'); if(m){ m.style.display='flex'; renderRecTableInto('installment','recInstallmentBody'); } }
+  function recAddFromModal(type){
+    const desc = (document.getElementById('rec_'+type+'_desc').value||'').trim();
+    const value = (typeof parseNum==='function') ? parseNum(document.getElementById('rec_'+type+'_value').value) : parseFloat((document.getElementById('rec_'+type+'_value').value||'0').replace(',','.'));
+    const startDate = document.getElementById('rec_'+type+'_date').value;
+    const freq = document.getElementById('rec_'+type+'_freq').value;
+    if(!desc||!value||!startDate){ if(typeof alert==='function') alert('Preencha descrição, valor e data'); return; }
+    let rec = {id: Date.now()+Math.floor(Math.random()*1000), desc, value, type: (type==='income'?'income':'expense'), freq, startDate, subType:'recurrence', totalParcels:0, remainParcels:0};
+    if(type==='installment'){
+      const total = parseInt((document.getElementById('rec_installment_total').value)||0)||0;
+      const remain = parseInt((document.getElementById('rec_installment_remain').value)||0)||total;
+      if(total<=0){ if(typeof alert==='function') alert('Informe o total de parcelas'); return; }
+      rec = {id: rec.id, desc, value, type:'expense', freq, startDate, subType:'installment', totalParcels: total, remainParcels: remain};
+    }
+    const arr = (typeof loadRec==='function') ? loadRec() : []; arr.unshift(rec);
+    if(typeof saveRec==='function') saveRec(arr);
+    if(typeof renderRecurring==='function') renderRecurring();
+    if(type==='income') renderRecTableInto('income','recIncomeBody');
+    if(type==='expense') renderRecTableInto('expense','recExpenseBody');
+    if(type==='installment') renderRecTableInto('installment','recInstallmentBody');
+  }
+  window.openRecModalIncome = openRecModalIncome;
+  window.openRecModalExpense = openRecModalExpense;
+  window.openRecModalInstallment = openRecModalInstallment;
+  window.recAddFromModal = recAddFromModal;
+})();
+</script>
+
+</body>
+</html>
